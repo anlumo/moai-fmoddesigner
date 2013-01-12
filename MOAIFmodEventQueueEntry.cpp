@@ -1,8 +1,18 @@
 // Copyright (c) 2010-2011 Zipline Games, Inc. All Rights Reserved.
 // http://getmoai.com
+// Version 1.0
+// Changes:
+//     - fixed project headers to accompany common project structure
+//     - initializing and freeing of EventQueueEntry
+//     - added copy constructor
+//     - added getter and setter for userData
+//     - added getter for memory info
 
 #include "pch.h"
 #include <moaicore/MOAIFmodEventQueueEntry.h>
+
+#include <fmod_event.hpp>
+#include <moaicore/MOAIFmodEvent.h>
 
 //================================================================//
 // MOAIFmodEventQueueEntry
@@ -20,10 +30,27 @@ MOAIFmodEventQueueEntry::MOAIFmodEventQueueEntry () {
 		// and any other objects from multiple inheritance...
 		// RTTI_EXTEND ( MOAIFmodEventQueueEntryBase )
 	RTTI_END
+    
+    mEventQueueEntry = new FMOD::EventQueueEntry();
+}
+
+MOAIFmodEventQueueEntry::MOAIFmodEventQueueEntry (FMOD::EventQueueEntry* eventQueueEntry) {
+    
+	// register all classes MOAIFmodEventQueueEntry derives from
+	// we need this for custom RTTI implementation
+	RTTI_BEGIN
+    RTTI_EXTEND ( MOAILuaObject )
+    
+    // and any other objects from multiple inheritance...
+    // RTTI_EXTEND ( MOAIFmodEventQueueEntryBase )
+	RTTI_END
+    
+    mEventQueueEntry = new FMOD::EventQueueEntry(eventQueueEntry);
 }
 
 //----------------------------------------------------------------//
 MOAIFmodEventQueueEntry::~MOAIFmodEventQueueEntry () {
+    delete mEventQueueEntry;
 }
 
 //----------------------------------------------------------------//
@@ -58,17 +85,17 @@ void MOAIFmodEventQueueEntry::RegisterLuaFuncs ( MOAILuaState& state ) {
 		{ "getExpiryTime",		_getExpiryTime },
 		//{ "getInfoOnlyEvent",	_getInfoOnlyEvent },
 		{ "getInterrupt",		_getInterrupt },
-		//{ "getMemoryInfo",		_getMemoryInfo },
+		{ "getMemoryInfo",		_getMemoryInfo },
 		{ "getPriority",		_getPriority },
 		{ "getRealEvent",		_getRealEvent },
-		//{ "getUserData",		_getUserData },
+		{ "getUserData",		_getUserData },
 		{ "release",			_release },
 		{ "setCrossfadeTime",	_setCrossfadeTime },
 		{ "setDelayTime",		_setDelayTime },
 		{ "setExpiryTime",		_setExpiryTime },
 		{ "setInterrupt",		_setInterrupt },
 		{ "setPriority",		_setPriority },
-		//{ "setUserData",		_setUserData },
+		{ "setUserData",		_setUserData },
 		{ NULL, NULL }
 	};
 
@@ -167,7 +194,7 @@ int MOAIFmodEventQueueEntry::_getInterrupt( lua_State* L ) {
 	
 	mEventQueueEntry->getInterrupt( &interrupt );
 	
-	lua_pushboolean( L, interrupt );	
+	lua_pushboolean( L, interrupt );
 		
 	return 1;
 }
@@ -177,22 +204,21 @@ int MOAIFmodEventQueueEntry::_getInterrupt( lua_State* L ) {
 
 	@out	nil
 */
-/*
-//TODO: method not implemented completely
 int MOAIFmodEventQueueEntry::_getMemoryInfo( lua_State* L ) {
-// FMOD_RESULT EventQueueEntry::getMemoryInfo( unsigned int memorybits, unsigned int event_memorybits, unsigned int* memoryused, FMOD_MEMORY_USAGE_DETAILS* memoryused_details );
-	MOAI_LUA_SETUP ( MOAIFmodEventQueueEntry, "U" );
-	
-	unsigned int memorybits;
-	unsigned int event_memorybits;
-	unsigned int memoryused;
-	FMOD_MEMORY_USAGE_DETAILS* memoryused_details;
-	
-	mEventQueueEntry->getMemoryInfo( memorybits, event_memorybits, &memoryused, memoryused_details );
-	
-	return 1; //TODO: return number of set values
+	MOAI_LUA_SETUP (MOAIFmodEventQueueEntry, "UNN")
+    
+    unsigned int in_memorybits	= state.GetValue<unsigned int>(2, 0U);
+    unsigned int in_event_memorybits	= state.GetValue<unsigned int>(3, 0U);
+    unsigned int* out_memoryused;
+    FMOD_MEMORY_USAGE_DETAILS* out_memoryused_details;
+    
+    FMOD_RESULT result = mEventQueueEntry->getMemoryInfo(in_memorybits, in_event_memorybits, out_memoryused, out_memoryused_details);
+    state.Push(out_memoryused_details);
+    state.Push(out_memoryused);
+    
+    return result;
 }
-*/
+
 
 /**	@name	getPriority
 	@text	Get the priority of this event queue entry.
@@ -236,19 +262,17 @@ int MOAIFmodEventQueueEntry::_getRealEvent( lua_State* L ) {
 
 	@out	nil
 */
-/*
-//TODO: method not implemented completely
-int MOAIFmodEventQueueEntry::_getUserData( lua_State* L ) {
-// FMOD_RESULT EventQueueEntry::getUserData( void** userdata );
-	MOAI_LUA_SETUP ( MOAIFmodEventQueueEntry, "U" );
-		
-	mEventQueueEntry->getUserData ();
-	
-	lua_push( L, "value" );
-	
-	return 1; //return number of set values*
+
+int	MOAIFmodEventQueueEntry::_getUserData ( lua_State* L ) {
+    MOAI_LUA_SETUP (MOAIFmodEventQueueEntry, "U")
+    
+    void** out_userdata;
+    
+    FMOD_RESULT result = mEventQueueEntry->getUserData(out_userdata);
+    state.Push(out_userdata);
+    
+    return result;
 }
-*/
 
 /**	@name	release
 	@text	Release this event queue entry and all associated memory.
@@ -344,15 +368,12 @@ int MOAIFmodEventQueueEntry::_setPriority( lua_State* L ) {
 
 	@out	nil
 */
-/*
-//TODO: method not implemented completely
-int MOAIFmodEventQueueEntry::_setUserData( lua_State* L ) {
-// FMOD_RESULT EventQueueEntry::setUserData( void* userdata );
-	MOAI_LUA_SETUP ( MOAIFmodEventQueueEntry, "U" );
-	void* userdata = state.GetValue < void* >( 1, 0 );
-	
-	mEventQueueEntry->setUserData( userdata );
-	
-	return 0;
+int	MOAIFmodEventQueueEntry::_setUserData ( lua_State* L ) {
+    MOAI_LUA_SETUP (MOAIFmodEventQueueEntry, "UU")
+    
+    void* in_userdata = state.GetValue<void*>(2, NULL);
+    
+    FMOD_RESULT result = mEventQueueEntry->setUserData(in_userdata);
+    return result;
 }
-*/
+
