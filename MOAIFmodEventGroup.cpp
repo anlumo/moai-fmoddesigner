@@ -1,36 +1,10 @@
 
 #include "pch.h"
 #include <moaicore/MOAIFmodEventGroup.h>
+#include <moaicore/MOAIFmodEventProject.h>
+#include <moaicore/MOAIFmodEvent.h>
 
 #include <fmod_event.hpp>
-
-//----------------------------------------------------------------//
-/**	@name	classHello
-	@text	Class (a.k.a. static) method. Prints the string 'MOAIFoo class foo!' to the console.
-
-	@out	nil
-*/
-int MOAIFmodEventGroup::_classHello ( lua_State* L ) {
-	UNUSED ( L );
-	
-	printf ( "MOAIFmodEventGroup class foo!\n" );
-	
-	return 0;
-}
-
-//----------------------------------------------------------------//
-/**	@name	instanceHello
-	@text	Prints the string 'MOAIFoo instance foo!' to the console.
-
-	@out	nil
-*/
-int MOAIFmodEventGroup::_instanceHello ( lua_State* L ) {
-	MOAI_LUA_SETUP ( MOAIFmodEventGroup, "U" ) // this macro initializes the 'self' variable and type checks arguments
-
-	printf ( "MOAIFmodEventGroup instance foo!\n" );
-	
-	return 0;
-}
 
 
 MOAIFmodEventGroup::MOAIFmodEventGroup () {
@@ -43,10 +17,27 @@ MOAIFmodEventGroup::MOAIFmodEventGroup () {
 		// and any other objects from multiple inheritance...
 		// RTTI_EXTEND ( MOAIFooBase )
 	RTTI_END
+
+	eventGroup = new FMOD::EventGroup();
+}
+
+MOAIFmodEventGroup::MOAIFmodEventGroup (FMOD::EventGroup* eventGroup) {
+	
+	// register all classes MOAIFoo derives from
+	// we need this for custom RTTI implementation
+	RTTI_BEGIN
+		RTTI_EXTEND ( MOAILuaObject )
+		
+		// and any other objects from multiple inheritance...
+		// RTTI_EXTEND ( MOAIFooBase )
+	RTTI_END
+
+	this->eventGroup = new FMOD::EventGroup(eventGroup);
 }
 
 //----------------------------------------------------------------//
 MOAIFmodEventGroup::~MOAIFmodEventGroup () {
+	delete this->eventGroup;
 }
 
 
@@ -55,161 +46,223 @@ int	MOAIFmodEventGroup::_freeEventData ( lua_State* L ) {
 
 	FMOD::Event* in_event	= state.GetValue<FMOD::Event*>(2, NULL);
 	bool in_waituntilready	= state.GetValue<bool>(3, true);
-		
 
-	return self->eventGroup->freeEventData(in_event, in_waituntilready);
+	FMOD_RESULT result = self->eventGroup->freeEventData(in_event, in_waituntilready);
+	return result;
 }
 
 int	MOAIFmodEventGroup::_getEvent ( lua_State* L ) {
-	MOAI_LUA_SETUP (MOAIFmodEventGroup, "USUU")
+	MOAI_LUA_SETUP (MOAIFmodEventGroup, "USN")
 
 	const char* in_name		= state.GetValue<const char*>(2, NULL);
 	FMOD_EVENT_MODE in_mode	= state.GetValue<FMOD_EVENT_MODE>(3, 0U);
-	FMOD::Event** in_event	= state.GetValue<FMOD::Event**>(4, NULL);
+	FMOD::Event** out_event;
 
-	return self->eventGroup->getEvent(in_name, in_mode, in_event);
+	FMOD_RESULT result = self->eventGroup->getEvent(in_name, in_mode, out_event);
+	MOAIFmodEvent* fmodEvent = new MOAIFmodEvent(*out_event);
+	fmodEvent->BindToLua(state);
+	state.Push(fmodEvent);
+
+	return result;
 }
 
 int	MOAIFmodEventGroup::_getEventByIndex ( lua_State* L ) {
-	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UNUU")
+	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UNU")
 
 	int in_index			= state.GetValue<int>(2, 0);
 	FMOD_EVENT_MODE in_mode	= state.GetValue<FMOD_EVENT_MODE>(3, 0U);
-	FMOD::Event** in_event	= state.GetValue<FMOD::Event**>(4, NULL);
+	FMOD::Event** out_event;
 
-	return self->eventGroup->getEventByIndex(in_index, in_mode, in_event);
+	FMOD_RESULT result = self->eventGroup->getEventByIndex(in_index, in_mode, out_event);
+	MOAIFmodEvent* fmodEvent = new MOAIFmodEvent(*out_event);
+	fmodEvent->BindToLua(state);
+	state.Push(fmodEvent);
+
+	return result;
 }
 
 int	MOAIFmodEventGroup::_getGroup ( lua_State* L ) {
-	MOAI_LUA_SETUP (MOAIFmodEventGroup, "USBU")
+	MOAI_LUA_SETUP (MOAIFmodEventGroup, "USB")
 
-	const char* in_name			= state.GetValue<const char*>(2, NULL);
-	bool in_cacheevents			= state.GetValue<bool>(3, false);
-	FMOD::EventGroup** in_group	= state.GetValue<FMOD::EventGroup**>(4, NULL);
+	const char* in_name	= state.GetValue<const char*>(2, NULL);
+	bool in_cacheevents	= state.GetValue<bool>(3, false);
+	FMOD::EventGroup** out_group;
 
-	return self->eventGroup->getGroup(in_name, in_cacheevents, in_group);
+	FMOD_RESULT result = self->eventGroup->getGroup(in_name, in_cacheevents, out_group);
+	MOAIFmodEventGroup* fmodEventGroup = new MOAIFmodEventGroup(*out_group);
+	fmodEventGroup->BindToLua(state);
+	state.Push(fmodEventGroup);
+
+	return result;
 }
 
 int	MOAIFmodEventGroup::_getGroupByIndex ( lua_State* L ) {
 	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UNBU")
 
-	int in_index				= state.GetValue<int>(2, 0);
-	bool in_cacheevents			= state.GetValue<bool>(3, false);
-	FMOD::EventGroup** in_group	= state.GetValue<FMOD::EventGroup**>(4, NULL);
+	int in_index		= state.GetValue<int>(2, 0);
+	bool in_cacheevents	= state.GetValue<bool>(3, false);
+	FMOD::EventGroup** out_group;
+	
+	FMOD_RESULT result = self->eventGroup->getGroupByIndex(in_index, in_cacheevents, out_group);
+	MOAIFmodEventGroup* fmodEventGroup = new MOAIFmodEventGroup(*out_group);
+	fmodEventGroup->BindToLua(state);
+	state.Push(fmodEventGroup);
 
-	return self->eventGroup->getGroupByIndex(in_index, in_cacheevents, in_group);
+	return result;
 }
 
 int	MOAIFmodEventGroup::_getInfo ( lua_State* L ) {
-	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UUU")
+	MOAI_LUA_SETUP (MOAIFmodEventGroup, "U")
 
-	int* in_index	= state.GetValue<int*>(2, NULL);
-	char** in_name	= state.GetValue<char**>(3, NULL);
+	int* out_index;
+	char** out_name;
 	
-	return self->eventGroup->getInfo(in_index, in_name);
+	FMOD_RESULT result = self->eventGroup->getInfo(out_index, out_name);
+	state.Push(out_name);
+	state.Push(out_index);
+
+	return result;
 }
 
 int	MOAIFmodEventGroup::_getMemoryInfo ( lua_State* L ) {
-	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UNNUU")
+	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UNN")
 
-	unsigned int in_memorybits							= state.GetValue<unsigned int>(2, 0U);
-	unsigned int in_event_memorybits					= state.GetValue<unsigned int>(3, 0U);
-	unsigned int* in_memoryused							= state.GetValue<unsigned int*>(4, NULL);
-	FMOD_MEMORY_USAGE_DETAILS* in_memoryused_details	= state.GetValue<FMOD_MEMORY_USAGE_DETAILS*>(5, NULL);
+	unsigned int in_memorybits			= state.GetValue<unsigned int>(2, 0U);
+	unsigned int in_event_memorybits	= state.GetValue<unsigned int>(3, 0U);
+	unsigned int* out_memoryused;
+	FMOD_MEMORY_USAGE_DETAILS* out_memoryused_details;
 	
-	return self->eventGroup->getMemoryInfo(in_memorybits, in_event_memorybits, in_memoryused, in_memoryused_details);
+	FMOD_RESULT result = self->eventGroup->getMemoryInfo(in_memorybits, in_event_memorybits, out_memoryused, out_memoryused_details);
+	state.Push(out_memoryused_details);
+	state.Push(out_memoryused);
+
+	return result;
 }
 
 int	MOAIFmodEventGroup::_getNumEvents ( lua_State* L ) {
-	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UU")
+	MOAI_LUA_SETUP (MOAIFmodEventGroup, "U")
 
-	int* in_numevents	= state.GetValue<int*>(2, NULL);
+	int* out_numevents;
 	
-	return self->eventGroup->getNumEvents(in_numevents);
+	FMOD_RESULT result = self->eventGroup->getNumEvents(out_numevents);
+	state.Push(out_numevents);
+
+	return result;
 }
 
 int	MOAIFmodEventGroup::_getNumGroups ( lua_State* L ) {
 	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UU")
 
-	int* in_numgroups	= state.GetValue<int*>(2, NULL);
+	int* out_numgroups;
 	
-	return self->eventGroup->getNumGroups(in_numgroups);
+	FMOD_RESULT result = self->eventGroup->getNumGroups(out_numgroups);
+	state.Push(out_numgroups);
+
+	return result;
 }
 
 int	MOAIFmodEventGroup::_getNumProperties ( lua_State* L ) {
-	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UU")
+	MOAI_LUA_SETUP (MOAIFmodEventGroup, "U")
 
-	int* in_numproperties	= state.GetValue<int*>(2, NULL);
+	int* out_numproperties;
 	
-	return self->eventGroup->getNumProperties(in_numproperties);
+	FMOD_RESULT result = self->eventGroup->getNumProperties(out_numproperties);
+	state.Push(out_numproperties);
+
+	return result;
 }
 
 int	MOAIFmodEventGroup::_getParentGroup ( lua_State* L ) {
-	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UU")
+	MOAI_LUA_SETUP (MOAIFmodEventGroup, "U")
 
-	FMOD::EventGroup** in_group	= state.GetValue<FMOD::EventGroup**>(2, NULL);
+	FMOD::EventGroup** out_group;
 	
-	return self->eventGroup->getParentGroup(in_group);
+	FMOD_RESULT result = self->eventGroup->getParentGroup(out_group);
+	MOAIFmodEventGroup* fmodEventGroup = new MOAIFmodEventGroup(*out_group);
+	fmodEventGroup->BindToLua(state);
+	state.Push(fmodEventGroup);
+	
+	return result;
 }
 
 int	MOAIFmodEventGroup::_getParentProject ( lua_State* L ) {
-	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UU")
+	MOAI_LUA_SETUP (MOAIFmodEventGroup, "U")
 
-	FMOD::EventProject** in_project	= state.GetValue<FMOD::EventProject**>(2, NULL);
+	FMOD::EventProject** out_project;
+
+	FMOD_RESULT result = self->eventGroup->getParentProject(out_project);
+	MOAIFmodEventProject* fmodEventProject = new MOAIFmodEventProject(*out_project);
+	fmodEventProject->BindToLua(state);
+	state.Push(fmodEventProject);
 	
-	return self->eventGroup->getParentProject(in_project);
+	return result;
 }
 
 int	MOAIFmodEventGroup::_getProperty ( lua_State* L ) {
-	MOAI_LUA_SETUP (MOAIFmodEventGroup, "USU")
+	MOAI_LUA_SETUP (MOAIFmodEventGroup, "US")
 
-	const char* in_propertyname	= state.GetValue<const char*>(2, NULL);
-	void* in_value				= state.GetValue<void*>(3, NULL);
+	const char* out_propertyname	= state.GetValue<const char*>(2, NULL);
+	void* out_value;
 	
-	return self->eventGroup->getProperty(in_propertyname, in_value);
+	FMOD_RESULT result = self->eventGroup->getProperty(out_propertyname, out_value);
+	state.Push(out_value);
+	state.Push(out_propertyname);
+
+	return result;
 }
 
 int	MOAIFmodEventGroup::_getPropertyByIndex ( lua_State* L ) {
-	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UNU")
+	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UN")
 
-	int in_propertyindex	= state.GetValue<int>(2, 0);
-	void* in_value			= state.GetValue<void*>(3, NULL);
+	int out_propertyindex	= state.GetValue<int>(2, 0);
+	void* out_value;
 	
-	return self->eventGroup->getPropertyByIndex(in_propertyindex, in_value);
+	FMOD_RESULT result = self->eventGroup->getPropertyByIndex(out_propertyindex, out_value);
+	state.Push(out_value);
+	state.Push(out_propertyindex);
+
+	return result;
 }
 
 int	MOAIFmodEventGroup::_getState ( lua_State* L ) {
-	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UU")
+	MOAI_LUA_SETUP (MOAIFmodEventGroup, "U")
 
-	FMOD_EVENT_STATE* in_state	= state.GetValue<FMOD_EVENT_STATE*>(2, NULL);
+	FMOD_EVENT_STATE* out_state;
 	
-	return self->eventGroup->getState(in_state);
+	FMOD_RESULT result = self->eventGroup->getState(out_state);
+	state.Push(out_state);
+
+	return result;
 }
 
 int	MOAIFmodEventGroup::_getUserData ( lua_State* L ) {
-	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UU")
+	MOAI_LUA_SETUP (MOAIFmodEventGroup, "U")
 
-	void** in_userdata	= state.GetValue<void**>(2, NULL);
+	void** out_userdata;
 	
-	return self->eventGroup->getUserData(in_userdata);
+	FMOD_RESULT result = self->eventGroup->getUserData(out_userdata);
+	state.Push(out_userdata);
+
+	return result;
 }
 
 int	MOAIFmodEventGroup::_loadEventData ( lua_State* L ) {
-	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UUU")
+	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UNN")
 
-	FMOD_EVENT_RESOURCE in_resource;
-	in_resource	= static_cast<FMOD_EVENT_RESOURCE>(state.GetValue<int>(2, 0));
-	FMOD_EVENT_MODE in_mode = state.GetValue<FMOD_EVENT_MODE>(3, 0U);
+	FMOD_EVENT_RESOURCE in_resource = static_cast<FMOD_EVENT_RESOURCE>(state.GetValue<int>(2, 0));
+	FMOD_EVENT_MODE in_mode			= state.GetValue<FMOD_EVENT_MODE>(3, FMOD_EVENT_DEFAULT);
 	
-	return self->eventGroup->loadEventData(in_resource, in_mode);
+	FMOD_RESULT result = self->eventGroup->loadEventData(in_resource, in_mode);
+	return result;
 }
 
 int	MOAIFmodEventGroup::_setUserData ( lua_State* L ) {
 	MOAI_LUA_SETUP (MOAIFmodEventGroup, "UU")
 
-	void* in_userdata	= state.GetValue<void*>(2, NULL);
+	void* in_userdata = state.GetValue<void*>(2, NULL);
 	
-	return self->eventGroup->setUserData(in_userdata);
+	FMOD_RESULT result = self->eventGroup->setUserData(in_userdata);
+	return result;
 }
 
 
@@ -226,7 +279,6 @@ void MOAIFmodEventGroup::RegisterLuaClass ( MOAILuaState& state ) {
 
 	// here are the class methods:
 	luaL_Reg regTable [] = {
-		{ "classHello",		_classHello },
 		{ NULL, NULL }
 	};
 
@@ -241,7 +293,6 @@ void MOAIFmodEventGroup::RegisterLuaFuncs ( MOAILuaState& state ) {
 
 	// here are the instance methods:
 	luaL_Reg regTable [] = {
-		{ "instanceHello",	_instanceHello },
 		{ "freeEventData",	_freeEventData },
 		{ "getEvent",	_getEvent },
 		{ "getEventByIndex",	_getEventByIndex },
